@@ -10,7 +10,6 @@ So jquery, popper, js libraries, etc works very well.
 - [friendly_id](https://github.com/norman/friendly_id)
 - [sidekiq](https://github.com/mperham/sidekiq)
 - [name_of_person](https://github.com/basecamp/name_of_person)
-- [omniauth-twitter](https://github.com/arunagw/omniauth-twitter)
 - [font-awesome](https://github.com/font-awesome-rails)
 
 ### 🍀 Bootstrap 5 & Importmaps
