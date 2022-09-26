@@ -29,7 +29,7 @@ def add_gems
   gem 'friendly_id'
   gem 'sidekiq'
   gem 'name_of_person'
-  gem 'simple_form'
+  gem 'simple_form-tailwind'
   gem 'kaminari'
   gem 'font-awesome-rails'
 end
@@ -63,13 +63,11 @@ end
 
 def bootstrap
   # Installing bootstrap 5
-  run "./bin/rails css:install:bootstrap"
+  run "./bin/rails css:install:tailwind"
 end
 
 # Importmaps
 def importmaps
-  run './bin/importmap pin jquery --download'
-  run './bin/config/importmap.rb'
   run './bin/importmap pin time --download'
   run './bin/config/importmap.rb'
   run './bin/importmap pin @fortawesome/fontawesome-free --download'
@@ -108,7 +106,7 @@ def add_kaminari
 end
 
 def add_simple_form
-  generate "simple_form:install --bootstrap"
+  generate "simple_form:tailwind:install"
 end
 # Main setup
 
@@ -141,7 +139,7 @@ after_bundle do
   say
   say "🥳 Project successfully created with this Template! 💎", :green
   say
-  say "Switch to your app by running:" :green
+  say "Switch to your app by running:", :green
   say "$ cd #{app_name}", :yellow
   say
   say "2 Ways to run:", :green
