@@ -1,10 +1,14 @@
-=begin
-Template: Journey - Bootstrap 5 - Rails 7
-Author: Pablo Blanco
-Author URI: https://github.com/PabloB07 (PabloB07 in GitHub), imcoding.live
-Instructions: $ rails new myapp -d <postgresql, mysql, sqlite3> -m template.rb / URL
-and finally: foreman start
-=end
+# frozen_string_literal: true
+
+# Template: Journey - for Rails 6 and 7
+# Author: Pablo Blanco
+# Author URI: https://github.com/PabloB07, imcoding.vercel.app
+# Instructions: $ rails new myapp -d <postgresql, mysql, sqlite3> -m template.rb / URL
+# gem install foreman - to install foreman and run it instead of bin/dev to all process in the background async
+
+require "fileutils"
+require "shellwords"
+
 def add_template_repository
   if __FILE__ =~ %r{\Ahttps?://}
     require "tmpdir"
@@ -12,11 +16,11 @@ def add_template_repository
     at_exit { FileUtils.remove_entry(tempdir) }
     git clone: [
       "--quiet",
-      "https://github.com/PabloB07/Journey_Template_Rails7",
+      "https://github.com/PabloB07/Journey_Template_Rails.git",
       tempdir
     ].map(&:shellescape).join(" ")
 
-    if (branch = __FILE__[%r{Journey_Template/(.+)/template.rb}, 1])
+    if (branch = __FILE__[%r{Journey_Template_Rails/(.+)/template.rb}, 1])
       Dir.chdir(tempdir) { git checkout: branch }
     end
   else
@@ -24,26 +28,42 @@ def add_template_repository
   end
 end
 
+def rails_version
+  @rails_version ||= Gem::Version.new(Rails.version) # Tell if Rails version is or equals to 6.1.0 or newer
+end
+
+def rails_6_or_newer?
+  if Gem::Requirement.new(">= 6.1.0").satisfied_by? rails_version # End of life of ruby on rails 6.0.0 ended in (01 Jun 2023), so instead we can use now 6.1.0 or newer.
+    return unless rails_6_or_newer?
+    puts "Please use Rails 6.1.0 or newer to create a Journey application".upcase # Tell user to use Rails 6.1.0 or newer
+  end
+end
+
 def add_gems
+  gem "cssbundling-rails"
   gem 'devise'
   gem 'friendly_id'
   gem 'sidekiq'
-  gem 'name_of_person'
   gem 'simple_form-tailwind'
+  gem 'chilean-rutify'
   gem 'kaminari'
-  gem 'font-awesome-rails'
 end
 
 def add_users
   # Install Devise
+
   generate "devise:install"
 
   # Configure Devise
-  environment "config.action_mailer.default_url_options = { host: 'localhost', port: 3000 }",
-              env: 'development'
+
+  environment "config.action_mailer.default_url_options = { host: 'localhost', port: 3000 }", env: 'development'
+
+  # Routing homepage as index page
+
   route "root to: 'home#index'"
 
-  # Create Devise User
+  # Create Devise User model
+
   generate :devise, "User", "first_name:string", "last_name:string"
 
   insert_into_file "config/routes.rb",
@@ -51,31 +71,46 @@ def add_users
     after: "devise_for :users"
 
   # Set admin boolean to false by default
+
   in_root do
     migration = Dir.glob("db/migrate/*").max_by{ |f| File.mtime(f) }
     gsub_file migration, /:admin/, ":admin, default: false"
   end
 end
 
+# Use default esbuild or Skip Esbuild argument
+
+def default_esbuild
+  return if options[:javascript] == "esbuild"
+  unless options[:skip_javascript]
+    @options = options.merge(javascript: "esbuild")
+  end
+end
+
+# Adding javascript packages and esbuild-rails dependencies
+
+def add_javascript
+  run "yarn add local-time esbuild-rails trix @hotwired/stimulus @hotwired/turbo-rails @rails/activestorage @rails/ujs @rails/request.js chokidar @fortawesome/fontawesome-free lucide-react"
+end
+
+# Copying files and assets to the app
+
 def copy_templates
+  remove_file "app/assets/stylesheets/application.css"
+  remove_file "app/javascript/application.js"
+  remove_file "app/javascript/controllers/index.js"
+  remove_file "Procfile.dev"
+
+  copy_file "Procfile"
+  copy_file "Procfile.dev"
+  copy_file ".foreman"
+  copy_file "esbuild.config.mjs"
+  copy_file "app/javascript/application.js"
+  copy_file "app/javascript/controllers/index.js"
+
   directory "app", force: true
-end
-
-def bootstrap
-  # Installing bootstrap 5
-  run "./bin/rails css:install:tailwind"
-end
-
-# Importmaps
-def importmaps
-  run './bin/importmap pin time --download'
-  run './bin/config/importmap.rb'
-  run './bin/importmap pin @fortawesome/fontawesome-free --download'
-  run './bin/config/importmap.rb'
-end
-
-def javascript_app
-  insert_into_file 'app/javascript/application.js','\n import "@fortawesome/fontawesome-free"'
+  directory "config", force: true
+  directory "lib", force: true
 end
 
 def add_sidekiq
@@ -93,12 +128,9 @@ def add_sidekiq
   insert_into_file "config/routes.rb", "#{sidekiq}\n\n", after: "Rails.application.routes.draw do\n"
 end
 
-def add_foreman
-  copy_file "Procfile"
-end
-
 def add_friendly_id
   generate "friendly_id"
+  insert_into_file(Dir["db/migrate/**/*friendly_id_slugs.rb"].first, "[5.2]", after: "ActiveRecord::Migration")
 end
 
 def add_kaminari
@@ -108,23 +140,32 @@ end
 def add_simple_form
   generate "simple_form:tailwind:install"
 end
+
 # Main setup
 
 add_template_repository
 add_gems
 
-
 after_bundle do
   add_users
   add_sidekiq
   add_foreman
-  importmaps
   copy_templates
-  bootstrap
-  javascript_add
+  tailwindcss
+  default_esbuild
+  add_javascript
   add_friendly_id
   add_kaminari
   add_simple_form
+  rails_command "active_storage:install"
+
+  # Make sure to bundle lock in Gemfile
+
+  run "bundle lock --add-platform x86_64-linux"
+
+  # Default esbuild config file is esbuild.config.js by default but you can change it to esbuild.config.mjs or esbuild.config.cjs or whatever you want
+
+  default_esbuild
 
   # Migrate & create
 
@@ -133,17 +174,24 @@ after_bundle do
 
   git :init
   git add: "."
-  git commit: %Q{ -m "Initial commit Journey Template Rails 7 :fire: :package:" }
+  git commit: %Q{ -m "Initial commit with Journey Template Rails :fire: :package:" }
+
+  # Final message, run your app and say goodbye 💎!
 
   say
-  say "🥳 Project successfully created with this Template! 💎", :green
+  say "🥳 Project successfully created with Journey! 🧗", :green
   say
-  say "Switch to your app by running:", :green
-  say "$ cd #{app_name}", :yellow
+  say "Switch to your app with:", :green
+  say "  cd #{app_name}", :blue
   say
-  say "2 Ways to run:", :green
-  say "$ rails server -p 3000", :yellow
-  say ""
-  say "(foreman run web, sidekiq & services)", :green
-  say "$ foreman start", :yellow
-  end
+  say "Execute the follow commands:", :green
+  say "  gem install foreman", :blue
+  say
+  say "Run #{app_name} app with:", :green
+  say "  bin/dev", :blue
+  say
+  say "💎💎💎💎💎💎💎💎💎💎"
+  say "💎 ENJOY YOUR JOURNEY 💎", :blue
+  say "💎💎💎💎💎💎💎💎💎💎"
+  say
+end
