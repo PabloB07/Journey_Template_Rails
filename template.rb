@@ -150,7 +150,6 @@ after_bundle do
   add_users
   add_sidekiq
   copy_templates
-  tailwindcss
   default_esbuild
   add_javascript
   add_friendly_id
