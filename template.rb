@@ -10,7 +10,7 @@ require "fileutils"
 require "shellwords"
 
 def add_template_repository
-  if __FILE__ =~ %r{\Ahttps?://}
+  if __FILE__.match?(%r{\Ahttps?://})
     require "tmpdir"
     source_paths.unshift(tempdir = Dir.mktmpdir("journey-"))
     at_exit { FileUtils.remove_entry(tempdir) }
@@ -41,12 +41,12 @@ end
 
 def add_gems
   gem "cssbundling-rails"
-  gem 'devise'
-  gem 'friendly_id'
-  gem 'sidekiq'
-  gem 'simple_form-tailwind'
-  gem 'chilean-rutify'
-  gem 'kaminari'
+  gem "devise"
+  gem "friendly_id"
+  gem "sidekiq"
+  gem "simple_form-tailwind"
+  gem "chilean-rutify"
+  gem "kaminari"
 end
 
 def add_users
@@ -56,7 +56,7 @@ def add_users
 
   # Configure Devise
 
-  environment "config.action_mailer.default_url_options = { host: 'localhost', port: 3000 }", env: 'development'
+  environment "config.action_mailer.default_url_options = { host: 'localhost', port: 3000 }", env: "development"
 
   # Routing homepage as index page
 
@@ -73,7 +73,7 @@ def add_users
   # Set admin boolean to false by default
 
   in_root do
-    migration = Dir.glob("db/migrate/*").max_by{ |f| File.mtime(f) }
+    migration = Dir.glob("db/migrate/*").max_by { |f| File.mtime(f) }
     gsub_file migration, /:admin/, ":admin, default: false"
   end
 end
@@ -149,9 +149,7 @@ add_gems
 after_bundle do
   add_users
   add_sidekiq
-  add_foreman
   copy_templates
-  tailwindcss
   default_esbuild
   add_javascript
   add_friendly_id
@@ -174,7 +172,7 @@ after_bundle do
 
   git :init
   git add: "."
-  git commit: %Q{ -m "Initial commit with Journey Template Rails :fire: :package:" }
+  git commit: %( -m "Initial commit with Journey Template Rails :fire: :package:" )
 
   # Final message, run your app and say goodbye 💎!
 
