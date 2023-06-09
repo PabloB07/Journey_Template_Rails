@@ -149,7 +149,6 @@ add_gems
 after_bundle do
   add_users
   add_sidekiq
-  add_foreman
   copy_templates
   tailwindcss
   default_esbuild
