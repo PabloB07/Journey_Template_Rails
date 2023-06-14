@@ -1,4 +1,4 @@
-class Home < ApplicationRecord
+class User < ApplicationRecord
   paginates_per 10
 
   def rut=(value)

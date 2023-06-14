@@ -29,14 +29,11 @@ def add_template_repository
 end
 
 def rails_version
-  @rails_version ||= Gem::Version.new(Rails.version) # Tell if Rails version is or equals to 6.1.0 or newer
+  @rails_version ||= Gem::Version.new(Rails::VERSION::STRING)
 end
 
 def rails_6_or_newer?
-  if Gem::Requirement.new(">= 6.1.0").satisfied_by? rails_version # End of life of ruby on rails 6.0.0 ended in (01 Jun 2023), so instead we can use now 6.1.0 or newer.
-    return unless rails_6_or_newer?
-    puts "Please use Rails 6.1.0 or newer to create a Journey application".upcase # Tell user to use Rails 6.1.0 or newer
-  end
+  Gem::Requirement.new(">= 6.1.0").satisfied_by? rails_version
 end
 
 def add_gems
@@ -47,6 +44,8 @@ def add_gems
   gem "simple_form-tailwind"
   gem "chilean-rutify"
   gem "kaminari"
+  gem "omniauth"
+  gem "omniauth-rails_csrf_protection"
 end
 
 def add_users
@@ -83,7 +82,7 @@ end
 def default_esbuild
   return if options[:javascript] == "esbuild"
   unless options[:skip_javascript]
-    @options = options.merge(javascript: "esbuild")
+    @options += options.merge(javascript: "esbuild")
   end
 end
 
@@ -141,6 +140,29 @@ def add_simple_form
   generate "simple_form:tailwind:install"
 end
 
+def add_esbuild_script
+  build_script = "node esbuild.config.mjs"
+
+  case `npx -v`.to_f
+  when 7.1...8.0
+    run %(npm set-script build "#{build_script}")
+    run %(yarn build)
+  when (8.0..)
+    run %(npm pkg set scripts.build="#{build_script}")
+    run %(yarn build)
+  else
+    say %(Add "scripts": { "build": "#{build_script}" } to your package.json), :green
+  end
+end
+
+def add_gem(name, *options)
+  gem(name, *options) unless gem_exists?(name)
+end
+
+def gem_exists?(name)
+  IO.read("Gemfile") =~ /^\s*gem ['"]#{name}['"]/
+end
+
 # Main setup
 
 add_template_repository
@@ -151,6 +173,7 @@ after_bundle do
   add_sidekiq
   copy_templates
   default_esbuild
+  add_esbuild_script
   add_javascript
   add_friendly_id
   add_kaminari
@@ -160,10 +183,6 @@ after_bundle do
   # Make sure to bundle lock in Gemfile
 
   run "bundle lock --add-platform x86_64-linux"
-
-  # Default esbuild config file is esbuild.config.js by default but you can change it to esbuild.config.mjs or esbuild.config.cjs or whatever you want
-
-  default_esbuild
 
   # Migrate & create
 
@@ -189,7 +208,7 @@ after_bundle do
   say "  bin/dev", :blue
   say
   say "💎💎💎💎💎💎💎💎💎💎"
-  say "💎 ENJOY YOUR JOURNEY 💎", :blue
+  say "💎 ENJOY YOUR JOURNEY 💎"
   say "💎💎💎💎💎💎💎💎💎💎"
   say
 end
