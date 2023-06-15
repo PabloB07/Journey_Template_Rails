@@ -75,6 +75,12 @@ def add_users
     migration = Dir.glob("db/migrate/*").max_by { |f| File.mtime(f) }
     gsub_file migration, /:admin/, ":admin, default: false"
   end
+
+  if Gem::Requirement.new("> 5.2").satisfied_by? rails_version
+    gsub_file "config/initializers/devise.rb", /  # config.secret_key = .+/, "  config.secret_key = Rails.application.credentials.secret_key_base"
+  end
+
+  inject_into_file("app/models/user.rb", "omniauthable, :", after: "devise :")
 end
 
 # Use default esbuild or Skip Esbuild argument
@@ -127,6 +133,24 @@ def add_sidekiq
   insert_into_file "config/routes.rb", "#{sidekiq}\n\n", after: "Rails.application.routes.draw do\n"
 end
 
+# Adding multiple authentication
+def add_multiple_authentication
+  insert_into_file "config/routes.rb", ', controllers: { omniauth_callbacks: "users/omniauth_callbacks" }', after: "  devise_for :users"
+
+  generate "model Service user:references provider uid access_token access_token_secret refresh_token expires_at:datetime auth:text"
+
+  template = """
+  env_creds = Rails.application.credentials[Rails.env.to_sym] || {}
+  %i{ facebook github }.each do |provider|
+    if options = env_creds[provider]
+      config.omniauth provider, options[:app_id], options[:app_secret], options.fetch(:options, {})
+    end
+  end
+  """.strip
+
+  insert_into_file "config/initializers/devise.rb", "  " + template + "\n\n", before: "  # ==> Warden configuration"
+end
+
 def add_friendly_id
   generate "friendly_id"
   insert_into_file(Dir["db/migrate/**/*friendly_id_slugs.rb"].first, "[5.2]", after: "ActiveRecord::Migration")
@@ -166,14 +190,12 @@ end
 # Main setup
 
 add_template_repository
+default_to_esbuild
 add_gems
 
 after_bundle do
   add_users
   add_sidekiq
-  copy_templates
-  default_to_esbuild
-  add_esbuild_script
   add_javascript
   add_friendly_id
   add_kaminari
@@ -183,7 +205,8 @@ after_bundle do
   # Make sure to bundle lock in Gemfile
 
   run "bundle lock --add-platform x86_64-linux"
-
+  copy_templates
+  add_esbuild_script
   # Migrate & create
 
   rails_command "db:create"
