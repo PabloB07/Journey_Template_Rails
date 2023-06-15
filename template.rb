@@ -79,10 +79,10 @@ end
 
 # Use default esbuild or Skip Esbuild argument
 
-def default_esbuild
+def default_to_esbuild
   return if options[:javascript] == "esbuild"
   unless options[:skip_javascript]
-    @options += options.merge(javascript: "esbuild")
+    @options = options.merge(javascript: "esbuild")
   end
 end
 
@@ -172,7 +172,7 @@ after_bundle do
   add_users
   add_sidekiq
   copy_templates
-  default_esbuild
+  default_to_esbuild
   add_esbuild_script
   add_javascript
   add_friendly_id
